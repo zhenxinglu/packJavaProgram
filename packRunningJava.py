@@ -24,7 +24,7 @@ EXTRA_FILES_AND_DIRS = [
     # "D:\\codes\\cnnckp_tcs\\base\\starter\\ois",
     # "D:\\codes\\cnnckp_tcs\\base\\starter\\persistence",
     # "D:\\codes\\cnnckp_tcs\\base\\starter\\tps_repository",
-    # "D:\\codes\\cnnckp_tcs\\tcs-config"
+    "D:\\codes\\cnnckp_tcs\\tcs-config"
 ]
 
 
