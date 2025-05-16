@@ -147,7 +147,7 @@ def copy_extra_files(extra_list, pack_dir):
 # 生成启动 Java 程序的 .bat 文件
 def create_bat_file(main_class, classpath_list, target_directory):
     classpath = ";".join([
-        os.path.join(target_directory, os.path.splitdrive(p)[0].lower().rstrip(':'), os.path.splitdrive(p)[1].lstrip("\\"))
+        os.path.relpath(os.path.join(target_directory, os.path.splitdrive(p)[0].lower().rstrip(':'), os.path.splitdrive(p)[1].lstrip("\\")), start=PACK_DIR)
         for p in classpath_list
     ])
     
