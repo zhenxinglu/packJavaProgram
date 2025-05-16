@@ -6,7 +6,6 @@
 # 3) run this script:  >  python packRunningJava.py
 # 4) go to PACK_DIR, and double click start_program.bat
 
-
 import os
 import subprocess
 import shutil
@@ -14,18 +13,81 @@ import re
 
 # Configure global variables
 JDK_PATH = r"d:\software\dev\jdk22" 
-#MAIN_CLASS = "tcs.base.starter.SimpleStarter"
-MAIN_CLASS = "com.cnnckp.tcs.tcptester.TcpTesterApplication"
 PACK_DIR = "D:\\tmp\\pack2"  # Target directory for packaging
 DEPENDENCY_DIR = os.path.join(PACK_DIR, "dependencies")  # Directory for dependencies
 EXTRA_FILES_AND_DIRS = [
-    # "D:\\codes\\cnnckp_tcs\\base\\starter\\archive",
-    # "D:\\codes\\cnnckp_tcs\\base\\starter\\nfsSharedStorage",
-    # "D:\\codes\\cnnckp_tcs\\base\\starter\\ois",
-    # "D:\\codes\\cnnckp_tcs\\base\\starter\\persistence",
-    # "D:\\codes\\cnnckp_tcs\\base\\starter\\tps_repository",
-    "D:\\codes\\cnnckp_tcs\\tcs-config"
+    #"D:\\codes\\tcs-config",
+    #"D:\\config2"
 ]
+
+# List all running Java processes using jcmd
+def list_java_processes():
+    try:
+        # Run jcmd -l to list all Java processes
+        process = subprocess.Popen(
+            ['jcmd', '-l'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            shell=True
+        )
+        stdout, stderr = process.communicate()
+
+        if stderr:
+            print(f"Error retrieving Java processes: {stderr.decode()}")
+            return None
+
+        output = stdout.decode().strip().split('\n')
+        java_processes = []
+        
+        # Parse the output to extract PID and class name
+        for line in output:
+            if line.strip() and not line.startswith('Picked up'):  # Skip environment variable lines
+                parts = line.strip().split(' ', 1)
+                if len(parts) == 2:
+                    pid, full_command = parts
+                    # Skip jcmd itself and any jps/jcmd process
+                    if 'jcmd' not in full_command and 'jps' not in full_command:
+                        # Extract main class name (it's the first part before any arguments)
+                        # Main class might have packages with dots, but no spaces
+                        main_class = full_command.split()[0]
+                        java_processes.append((pid, main_class, full_command))
+        
+        return java_processes
+
+    except Exception as e:
+        print(f"Exception while listing Java processes: {e}")
+        return None
+
+# Let user select a Java process
+def select_java_process():
+    processes = list_java_processes()
+    
+    if not processes:
+        print("No Java processes found running.")
+        return None
+    
+    print("\nRunning Java Processes:")
+    print("----------------------")
+    for i, (pid, main_class, full_command) in enumerate(processes, 1):
+        print(f"{i}. PID: {pid} - {full_command}")
+    
+    while True:
+        try:
+            choice = input("\nSelect a process number (or 'q' to quit): ")
+            
+            if choice.lower() == 'q':
+                exit(0)
+            
+            index = int(choice) - 1
+            if 0 <= index < len(processes):
+                selected_pid, selected_main_class, full_command = processes[index]
+                print(f"\nSelected: {full_command} (PID: {selected_pid})")
+                print(f"Using main class: {selected_main_class}")
+                return selected_main_class
+            else:
+                print("Invalid selection. Please try again.")
+        except ValueError:
+            print("Please enter a number or 'q' to quit.")
 
 
 # Use jlink to generate custom JRE
@@ -205,10 +267,20 @@ def create_bat_file(main_class, classpath_list, target_directory, jvm_args=None,
 
 
 def main():
+    # Get user to select a Java process
+    selected_class = select_java_process()
+    if not selected_class:
+        print("No process selected. Exiting.")
+        return
+    
+    # Create necessary directories
+    if not os.path.exists(PACK_DIR):
+        os.makedirs(PACK_DIR)
+        
     generate_custom_jre()
     
     # 1. Get Java process startup parameters
-    jcmd_output = get_java_process_info(MAIN_CLASS)
+    jcmd_output = get_java_process_info(selected_class)
     if not jcmd_output:
         print("Failed to retrieve Java process information.")
         return
@@ -242,8 +314,7 @@ def main():
     copy_extra_files(EXTRA_FILES_AND_DIRS, PACK_DIR)
 
     # 7. Create .bat file with extracted JVM and program arguments
-    create_bat_file(MAIN_CLASS, classpath_list, DEPENDENCY_DIR, jvm_args, args)
-
+    create_bat_file(selected_class, classpath_list, DEPENDENCY_DIR, jvm_args, args)
 
 if __name__ == "__main__":
     main()
