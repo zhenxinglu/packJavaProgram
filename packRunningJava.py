@@ -21,7 +21,7 @@ EXTRA_FILES_AND_DIRS = [
 ]
 
 # List all running Java processes using jcmd
-def list_java_processes():
+def list_java_processes() -> list[tuple[str, str, str]] | None:
     try:
         # Run jcmd -l to list all Java processes
         process = subprocess.Popen(
@@ -59,7 +59,7 @@ def list_java_processes():
         return None
 
 # Let user select a Java process
-def select_java_process():
+def select_java_process() -> str | None:
     processes = list_java_processes()
     
     if not processes:
@@ -91,7 +91,7 @@ def select_java_process():
 
 
 # Use jlink to generate custom JRE
-def generate_custom_jre():
+def generate_custom_jre() -> None:
     try:
         jlink_executable = os.path.join(JDK_PATH, "bin", "jlink.exe")  # Path to jlink
         output_jre_dir = os.path.join(PACK_DIR, "custom-jre")  # Output directory for custom JRE
@@ -126,7 +126,7 @@ def generate_custom_jre():
 
 
 # Get information about a specific Java process
-def get_java_process_info(main_class):
+def get_java_process_info(main_class: str) -> str | None:
     try:
         process = subprocess.Popen(
             ['jcmd', main_class, 'VM.command_line'],
@@ -149,7 +149,7 @@ def get_java_process_info(main_class):
 
 
 # Parse jcmd output to extract classpath
-def parse_classpath(jcmd_output):
+def parse_classpath(jcmd_output: str) -> list[str]:
     classpath_pattern = re.compile(r"java_class_path \(initial\): (.+)")
     match = classpath_pattern.search(jcmd_output)
     
@@ -161,7 +161,7 @@ def parse_classpath(jcmd_output):
 
 
 # Parse jcmd output to extract JVM arguments
-def parse_jvm_args(jcmd_output):
+def parse_jvm_args(jcmd_output: str) -> str:
     jvm_args_pattern = re.compile(r"jvm_args: (.+)")
     match = jvm_args_pattern.search(jcmd_output)
     
@@ -172,7 +172,7 @@ def parse_jvm_args(jcmd_output):
 
 
 # Copy dependency files from classpath
-def copy_dependencies(classpath_list, target_directory):
+def copy_dependencies(classpath_list: list[str], target_directory: str) -> None:
     if not os.path.exists(target_directory):
         os.makedirs(target_directory)
 
@@ -200,7 +200,7 @@ def copy_dependencies(classpath_list, target_directory):
 
 
 # Copy additional directories and files
-def copy_extra_files(extra_list, pack_dir):
+def copy_extra_files(extra_list: list[str], pack_dir: str) -> None:
     for item in extra_list:
         if os.path.exists(item):
             dest = os.path.join(pack_dir, os.path.basename(item))
@@ -218,7 +218,7 @@ def copy_extra_files(extra_list, pack_dir):
 
 
 # Generate .bat file to launch Java program
-def create_bat_file(main_class, classpath_list, target_directory, jvm_args=None, prog_args=None):
+def create_bat_file(main_class: str, classpath_list: list[str], target_directory: str, jvm_args: str | None = None, prog_args: list[str] | str | None = None) -> None:
     classpath = ";".join([
         os.path.relpath(os.path.join(target_directory, os.path.splitdrive(p)[0].lower().rstrip(':'), os.path.splitdrive(p)[1].lstrip("\\")), start=PACK_DIR)
         for p in classpath_list
@@ -266,7 +266,7 @@ def create_bat_file(main_class, classpath_list, target_directory, jvm_args=None,
     print(f".bat file created: {output_bat}")
 
 
-def main():
+def main() -> None:
     # Get user to select a Java process
     selected_class = select_java_process()
     if not selected_class:
