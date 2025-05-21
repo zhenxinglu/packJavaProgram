@@ -10,9 +10,10 @@ import os
 import subprocess
 import shutil
 import re
+import platform
 
 # Configure global variables
-JDK_PATH = r"d:\software\dev\jdk22"
+JDK_PATH = r"d:\software\dev\jdk223"
 PACK_DIR = "D:\\tmp\\pack2"  # Target directory for packaging
 DEPENDENCY_DIR = os.path.join(PACK_DIR, "dependencies")  # Directory for dependencies
 EXTRA_FILES_AND_DIRS = [
@@ -258,44 +259,51 @@ def create_bat_file(main_class: str, classpath_list: list[str], target_directory
     print(f".bat file created: {output_bat}")
 
 
-def validate_jdk_path() -> bool:
+def validate_jdk_path() -> str:
     """
     Validate if JDK_PATH exists and contains necessary JDK files.
-    Returns True if valid, False otherwise.
+    Returns valid JDK path or prompts user for a new one.
     """
-    if not os.path.exists(JDK_PATH):
-        print(f"Error: JDK_PATH does not exist: {JDK_PATH}")
-        return False
+    global JDK_PATH
     
-    # Check for essential JDK directories and files
-    required_items = [
-        os.path.join("bin", "java.exe"),
-        os.path.join("bin", "jcmd.exe"),
-        os.path.join("bin", "jlink.exe"),
-        "jmods",
-        "lib"
-    ]
+    def check_jdk_path(path: str) -> bool:
+        if not os.path.exists(path):
+            return False
+        
+        is_windows = platform.system().lower() == 'windows'
+        exe_ext = '.exe' if is_windows else ''
+        
+        required_items = [
+            os.path.join("bin", f"java{exe_ext}"),
+            os.path.join("bin", f"jcmd{exe_ext}"),
+            os.path.join("bin", f"jlink{exe_ext}"),
+            "jmods",
+            "lib"
+        ]
+        
+        for item in required_items:
+            full_path = os.path.join(path, item)
+            if not os.path.exists(full_path):
+                return False
+        return True
     
-    missing_items = []
-    for item in required_items:
-        full_path = os.path.join(JDK_PATH, item)
-        if not os.path.exists(full_path):
-            missing_items.append(item)
+    while not check_jdk_path(JDK_PATH):
+        print(f"\nError: Invalid JDK directory: {JDK_PATH}")
+        print("Please enter a valid JDK directory path (or 'q' to quit):")
+        new_path = input("> ").strip()
+        
+        if new_path.lower() == 'q':
+            exit(0)
+        
+        JDK_PATH = os.path.abspath(new_path)
     
-    if missing_items:
-        print(f"Error: Invalid JDK directory. Missing required items:")
-        for item in missing_items:
-            print(f"  - {item}")
-        return False
-    
-    return True
+    print(f"Using JDK path: {JDK_PATH}")
+    return JDK_PATH
 
 def main() -> None:
-    # Validate JDK_PATH before proceeding
-    if not validate_jdk_path():
-        print("Please set a valid JDK_PATH. Exiting.")
-        return
-        
+    # Validate JDK_PATH and potentially update it
+    JDK_PATH = validate_jdk_path()
+    
     # Get user to select a Java process
     selected_class = select_java_process()
     if not selected_class:
