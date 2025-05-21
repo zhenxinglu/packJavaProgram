@@ -4,7 +4,7 @@
 # 1) configure these 2 variables: JDK_PATH and PACK_DIR
 # 2) start the Java application you 'd like to pack
 # 3) run this script:  >  python packRunningJava.py
-# 4) go to PACK_DIR, and double click start_program.bat/start_program.sh
+# 4) go to PACK_DIR, and double click start_program.bat
 
 import os
 import subprocess
@@ -17,7 +17,7 @@ JDK_PATH = r"d:\software\dev\jdk22"
 PACK_DIR = "D:\\tmp\\pack2"  # Target directory for packaging
 DEPENDENCY_DIR = os.path.join(PACK_DIR, "dependencies")  # Directory for dependencies
 EXTRA_FILES_AND_DIRS = [
-    #"D:\\codes\\config",
+    #"D:\\codes\\tcs-config",
     #"D:\\config2"
 ]
 
@@ -94,7 +94,9 @@ def select_java_process() -> str | None:
 # Use jlink to generate custom JRE
 def generate_custom_jre() -> None:
     try:
-        jlink_executable = os.path.join(JDK_PATH, "bin", "jlink.exe")  # Path to jlink
+        is_windows = platform.system().lower() == 'windows'
+        exe_ext = '.exe' if is_windows else ''
+        jlink_executable = os.path.join(JDK_PATH, "bin", f"jlink{exe_ext}")  # Path to jlink based on OS
         output_jre_dir = os.path.join(PACK_DIR, "custom-jre")  # Output directory for custom JRE
         
         # Ensure output directory doesn't exist, delete if it exists
@@ -103,8 +105,8 @@ def generate_custom_jre() -> None:
             shutil.rmtree(output_jre_dir)
 
         # Use java --list-modules to get all available modules
-        java_executable = os.path.join(JDK_PATH, "bin", "java.exe")
-        available_modules = subprocess.check_output([java_executable, "--list-modules"]).decode().strip().splitlines()
+        java_executable = os.path.join(JDK_PATH, "bin", f"java{exe_ext}")
+        available_modules = subprocess.check_output([java_executable, "--list-modules"], shell=is_windows).decode().strip().splitlines()
 
         # Extract module names (only extract the part before @, remove version numbers)
         modules_to_add = ",".join([line.split('@')[0] for line in available_modules])
@@ -259,51 +261,6 @@ def create_bat_file(main_class: str, classpath_list: list[str], target_directory
     print(f".bat file created: {output_bat}")
 
 
-# Generate .sh file to launch Java program
-def create_sh_file(main_class: str, classpath_list: list[str], target_directory: str, jvm_args: str | None = None, prog_args: list[str] | str | None = None) -> None:
-    # Convert Windows paths to Linux style
-    classpath = ":".join([
-        os.path.relpath(
-            os.path.join(target_directory, os.path.splitdrive(p)[0].lower().rstrip(':'), os.path.splitdrive(p)[1].lstrip("\\")), 
-            start=PACK_DIR
-        ).replace("\\", "/")
-        for p in classpath_list
-    ])
-    
-    # Remove any -javaagent arguments that reference IDE-specific paths
-    jvm_args_parts = jvm_args.split()
-    filtered_jvm_args = []
-    i = 0
-    while i < len(jvm_args_parts):
-        if jvm_args_parts[i].startswith("-javaagent:") and ("idea_rt.jar" in jvm_args_parts[i] or "eclipse" in jvm_args_parts[i]):
-            i += 1
-        else:
-            filtered_jvm_args.append(jvm_args_parts[i])
-            i += 1
-    
-    jvm_args = " ".join(filtered_jvm_args)
-    
-    # Build the full Java command with Linux path style
-    java_command = f'custom-jre/bin/java {jvm_args} -cp "{classpath}" {main_class}'
-    
-    # Add program arguments if available
-    if prog_args:
-        if isinstance(prog_args, list):
-            java_command += f' {" ".join(prog_args)}'
-        else:
-            java_command += f' {prog_args}'
-    
-    output_sh = os.path.join(PACK_DIR, "start_program.sh")
-
-    with open(output_sh, 'w', newline='\n') as f:
-        f.write("#!/bin/bash\n")
-        f.write(f"echo Starting {main_class}...\n")
-        f.write(f"{java_command}\n")
-    
-    # Make the shell script executable
-    os.chmod(output_sh, 0o755)
-    print(f".sh file created: {output_sh}")
-
 def validate_jdk_path() -> str:
     """
     Validate if JDK_PATH exists and contains necessary JDK files.
@@ -355,6 +312,7 @@ def main() -> None:
         print("No process selected. Exiting.")
         return
     
+    # Create necessary directories
     if not os.path.exists(PACK_DIR):
         os.makedirs(PACK_DIR)
         
@@ -394,9 +352,8 @@ def main() -> None:
     # 6. Copy additional files and directories
     copy_extra_files(EXTRA_FILES_AND_DIRS, PACK_DIR)
 
-    # 7. Create both .bat and .sh files with extracted JVM and program arguments
+    # 7. Create .bat file with extracted JVM and program arguments
     create_bat_file(selected_class, classpath_list, DEPENDENCY_DIR, jvm_args, args)
-    create_sh_file(selected_class, classpath_list, DEPENDENCY_DIR, jvm_args, args)
 
 if __name__ == "__main__":
     main()
