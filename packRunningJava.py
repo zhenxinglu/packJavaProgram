@@ -12,7 +12,7 @@ import shutil
 import re
 
 # Configure global variables
-JDK_PATH = r"d:\software\dev\jdk22" 
+JDK_PATH = r"d:\software\dev\jdk22"
 PACK_DIR = "D:\\tmp\\pack2"  # Target directory for packaging
 DEPENDENCY_DIR = os.path.join(PACK_DIR, "dependencies")  # Directory for dependencies
 EXTRA_FILES_AND_DIRS = [
@@ -224,14 +224,6 @@ def create_bat_file(main_class: str, classpath_list: list[str], target_directory
         for p in classpath_list
     ])
     
-    # Use provided JVM arguments or fallback to default
-    if not jvm_args:
-        jvm_args = "--add-opens=java.desktop/java.beans=ALL-UNNAMED"
-    
-    # Use provided program arguments or fallback to default
-    if not prog_args:
-        prog_args = ["tcs-config/tcs-room1.conf", "tcs-config/tcs-global.conf", "0", "mockUcs"]
-    
     # Remove any -javaagent arguments that reference IDE-specific paths
     jvm_args_parts = jvm_args.split()
     filtered_jvm_args = []
@@ -266,7 +258,44 @@ def create_bat_file(main_class: str, classpath_list: list[str], target_directory
     print(f".bat file created: {output_bat}")
 
 
+def validate_jdk_path() -> bool:
+    """
+    Validate if JDK_PATH exists and contains necessary JDK files.
+    Returns True if valid, False otherwise.
+    """
+    if not os.path.exists(JDK_PATH):
+        print(f"Error: JDK_PATH does not exist: {JDK_PATH}")
+        return False
+    
+    # Check for essential JDK directories and files
+    required_items = [
+        os.path.join("bin", "java.exe"),
+        os.path.join("bin", "jcmd.exe"),
+        os.path.join("bin", "jlink.exe"),
+        "jmods",
+        "lib"
+    ]
+    
+    missing_items = []
+    for item in required_items:
+        full_path = os.path.join(JDK_PATH, item)
+        if not os.path.exists(full_path):
+            missing_items.append(item)
+    
+    if missing_items:
+        print(f"Error: Invalid JDK directory. Missing required items:")
+        for item in missing_items:
+            print(f"  - {item}")
+        return False
+    
+    return True
+
 def main() -> None:
+    # Validate JDK_PATH before proceeding
+    if not validate_jdk_path():
+        print("Please set a valid JDK_PATH. Exiting.")
+        return
+        
     # Get user to select a Java process
     selected_class = select_java_process()
     if not selected_class:
